@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Flask Multiple Upload</title>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div style="text-align: center; vertical-align: middle;">
+    <form id="upload-form" action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data">
+        <div id="dropbox">
+            <input id="file-picker" type="file" name="files" accept="image/*" value="Upload bank slips" multiple><p></p>
+            Or drag and drop files here
+        </div><p>
+
+        <fieldset id="progress" style="display: none">
+            <legend>Files Progress</legend>
+
+            <div class="progress-trough">
+                <div id="progress-bar" class="progress-bar">0%</div>
+            </div>
+        </fieldset><p>
+
+    </form>    
+    <input type="button" value="Export" id="Export-button">
+</div>
+
+
+<script type="text/javascript" src="{{ url_for('static', filename='js/jquery-2.1.1.min.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='js/uploadr.js') }}"></script>
+</body>
+</html>
