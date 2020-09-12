@@ -8,6 +8,7 @@ import easyocr
 import cv2
 import re
 import datetime
+from dateutil.parser import parse
 import xlsxwriter
 
 app = Flask(__name__)
@@ -57,7 +58,7 @@ bank_name_list = [
     }
 ]
 
-th_en_month = [
+th_month_names = [
         'ม.ค.',
         'ก.พ.',
         'มี.ค.',
@@ -73,7 +74,7 @@ th_en_month = [
 ]
 # convert thai month to en month
 def convert_month_th2en(th_month):
-    for index, th_month in enumerate(th_en_month):
+    for index, th_month in enumerate(th_month_names):
         if th_month in th_month:
             return str(index+1)
 
@@ -86,7 +87,7 @@ def convert_year_th2en(th_year):
     else: # lenth is 4
         en_year = int(th_year) -43
     return str(en_year)
-
+# convert date format th to en
 def convert_date_th2en(th_date):
     date_list = th_date.split()
     day = date_list[0]
@@ -96,6 +97,37 @@ def convert_date_th2en(th_date):
     en_year = convert_year_th2en(th_year)
 
     en_date = datetime.datetime.strptime(day+'/'+en_month+'/'+en_year, "%d/%m/%Y").strftime('%d/%m/%Y') 
+    return en_date
+
+# convert en year to th year
+def convert_year_en2th(en_year):
+    th_year = ''
+    try:
+        en_year = int(en_year)
+        th_year = str(en_year - 1957)
+    except ValueError:
+        th_year = ''
+    return th_year
+# convert en month to th month
+def convert_month_en2th(en_month):
+    th_month = ''
+    try:
+        en_month = int(en_month)
+        th_month = th_month_names[en_month - 1]
+    except ValueError:
+        th_month = ''
+    return th_month
+
+# convert date format en to th
+def convert_date_en2th(en_date):
+    date_list = en_date.split('/')
+    day = date_list[0].lstrip("0")
+    en_month = date_list[1]
+    th_year = date_list[2]
+    th_month = convert_month_en2th(en_month)
+    en_year = convert_year_en2th(en_year)
+
+    en_date = " ".join([day, en_month, en_year])
     return en_date
 
 def check_date_format(date):
@@ -181,18 +213,28 @@ def main_process(result):
         except AttributeError:
             transaction_time = ''
     # find bank name
-    bank_name = ''
+    en_bank_name = ''
+    th_bank_name = ''
     
     for entry in result:
         for bank_info in bank_name_list:
             bank_synonyms = bank_info['synonyms']
-    #         print(bank_synonyms)
             for bank_synonym in bank_synonyms:
                 e_text = entry[1]
                 if  bank_synonym in e_text:
-                    bank_name = bank_info['en_name']
+                    en_bank_name = bank_info['en_name']
+                    th_bank_name = bank_info['th_name']
                     break
-    res = {'amount':amount, 'transaction_date':transaction_date, 'transaction_time':transaction_time, 'bank_name': bank_name}
+    date_format = check_date_format(transaction_date)
+    en_transaction_date = ''
+    th_transaction_date = ''
+    if date_format == 'en':
+        en_transaction_date = transaction_date
+        th_transaction_date = convert_date_en2th(transaction_date)
+    else:
+        th_transaction_date = transaction_date
+        en_transaction_date = convert_date_th2en(transaction_date)
+    res = {'amount':amount, 'th_transaction_date':th_transaction_date, 'en_transaction_date':en_transaction_date, 'transaction_time':transaction_time, 'en_bank_name': en_bank_name, 'th_bank_name':th_bank_name}
     return res
 
 @app.route("/", methods=['GET', 'POST'])
@@ -204,10 +246,35 @@ def expert():
     workbook = xlsxwriter.Workbook('./ocrapp/static/uploads/expert.xlsx')
     en_worksheet = workbook.add_worksheet("EN")
     th_worksheet = workbook.add_worksheet("TH")
+    en_header = ['Filename', 'Date of Payment', 'Time', 'Amount (THB)', 'Bank of Payer']
+    th_header = ['ชื่อไฟล์', 'วันที่โอน', 'เวลาที่โอน', 'ยอดเงินที่โอน (THB)', 'ธนาคารผู้โอน']
+    row = 0
+    col = 0
+    global response
+    for item in en_header:
+        en_worksheet.write(row, col, item)
+        col += 1
+    col = 0
+    for item in th_header:
+        th_worksheet.write(row, col, item)
+        col += 1
+    for index, entry in enumerate(response):
+        row1 = index + 1
+        print(entry['file'], entry['info']['en_transaction_date'])
+        en_worksheet.write(row1, 0, entry['file'])
+        th_worksheet.write(row1, 0, entry['file'])
+        en_worksheet.write(row1, 1, entry['info']['en_transaction_date'])
+        th_worksheet.write(row1, 1, entry['info']['th_transaction_date'])
+        en_worksheet.write(row1, 2, entry['info']['transaction_time'])
+        th_worksheet.write(row1, 2, entry['info']['transaction_time'])
+        en_worksheet.write(row1, 3, entry['info']['amount'])
+        th_worksheet.write(row1, 3, entry['info']['amount'])
+        en_worksheet.write(row1, 4, entry['info']['en_bank_name'])
+        th_worksheet.write(row1, 4, entry['info']['th_bank_name'])
     workbook.close()
     return json.dumps(dict(
         status=True,
-        file='1.xlsx',
+        file='expert.xlsx',
     ))
     # return send_from_directory('./', filename='1.xlsx', as_attachment=True)
     # return send_file('2.txt',
@@ -215,6 +282,7 @@ def expert():
     #                  as_attachment=True)
 @app.route("/upload", methods=["POST"])
 def upload():
+    global response
     response = []
     """Handle the upload of a file."""
     form = request.form
@@ -243,7 +311,6 @@ def upload():
         destination = "/".join([target, filename])
         upload.save(destination)
         files.append(destination)
-    print(files)
     for file in files:
         image = cv2.imread(file)
         reader = easyocr.Reader(['th','en'], gpu=False) # need to run only once to load model into memory
@@ -251,7 +318,6 @@ def upload():
         result = main_process(result)
         filename = file.rsplit("/")[-1]
         response.append({'file':filename, 'info':result})
-    print(response)
     if is_ajax:
         return ajax_response(True, upload_key)
     else:
@@ -271,7 +337,6 @@ def upload_complete(uuid):
     for file in glob.glob("{}/*.*".format(root)):
         fname = file.split(os.sep)[-1]
         files.append(fname)
-    print(files)
     return render_template("index.html",
         uuid=uuid,
         files=files,
