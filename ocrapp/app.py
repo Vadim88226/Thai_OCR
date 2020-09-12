@@ -1,4 +1,5 @@
 from flask import Flask, request, redirect, url_for, render_template
+from flask import send_file, send_from_directory
 import os
 import json
 import glob
@@ -6,8 +7,107 @@ from uuid import uuid4
 import easyocr
 import cv2
 import re
+import datetime
+import xlsxwriter
 
 app = Flask(__name__)
+
+response = []
+
+bank_name_list = [
+    {
+        'en_name': 'Siam Commercial Bank', 
+        'th_name' : 'ธนาคารกรุงเทพ',
+        'synonyms': ['scb']
+    }, 
+    {
+        'en_name': 'Bangkok Bank',
+        'th_name': 'ธนาคารกรุงเทพ',
+        'synonyms': ['bualuang', 'ธนาคารกรุงเทพ', 'bangkok bank']
+    }, 
+    {
+        'en_name': 'Krung Thai Bank',
+        'th_name': 'ธนาคารกรุงไทย',
+        'synonyms': ['krungthai', 'กรุงไทย']
+    },
+    {
+        'en_name': 'Kasikorn Bank',
+        'th_name': 'ธนาคารกสิกรไทย',
+        'synonyms': ['ธ.กสิกรไทย']
+    },
+    {
+        'en_name': 'Thanachart Bank',
+        'th_name': 'ธนาคารธนชาต',
+        'synonyms': ['thanachart Bank', 'ธนาคารธนชาต']
+    },
+    {
+        'en_name': 'Krunsri Bank',
+        'th_name': 'ธนาคารธนชาต',
+        'synonyms': ['krungsri', 'ธนาคารธนชาต']
+    },
+    {
+        'en_name': 'TMB Bank',
+        'th_name': 'ธนาคารทหารไทย จำกัด',
+        'synonyms': ['tmb', 'ทีเอ็มบี']
+    },
+    {
+        'en_name': 'Bank for Agriculture and Agricultural Cooperatives',
+        'th_name': 'ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร',
+        'synonyms': ['BAAC', 'ธ.ก.ส.']
+    }
+]
+
+th_en_month = [
+        'ม.ค.',
+        'ก.พ.',
+        'มี.ค.',
+        'เม.ย.',
+        'พ.ค.',
+        'มิ.ย.',
+        'ก.ค.',
+        'ส.ค.',
+        'ก.ย.',
+        'ต.ค.',
+        'พ.ย.',
+        'ธ.ค.'
+]
+# convert thai month to en month
+def convert_month_th2en(th_month):
+    for index, th_month in enumerate(th_en_month):
+        if th_month in th_month:
+            return str(index+1)
+
+# convert thai year to en year
+def convert_year_th2en(th_year):
+    # if length of year is 2(e.g. 63)
+    en_year = 2020
+    if len(th_year) == 2:
+        en_year = int(th_year) + 1957
+    else: # lenth is 4
+        en_year = int(th_year) -43
+    return str(en_year)
+
+def convert_date_th2en(th_date):
+    date_list = th_date.split()
+    day = date_list[0]
+    th_month = date_list[1]
+    th_year = date_list[2]
+    en_month = convert_month_th2en(th_month)
+    en_year = convert_year_th2en(th_year)
+
+    en_date = datetime.datetime.strptime(day+'/'+en_month+'/'+en_year, "%d/%m/%Y").strftime('%d/%m/%Y') 
+    return en_date
+
+def check_date_format(date):
+    try:
+        parse(date, dayfirst=True)
+        return 'en'
+    except ValueError:
+        try:
+            parse(date)
+            return 'en'
+        except ValueError:
+            return 'th'
 
 def find_candidate(result, entry, regex):
     candidate = ''
@@ -36,8 +136,6 @@ def find_candidate(result, entry, regex):
 
 
 def main_process(result):
-    import re
-
     amount = ''
     fee = ''
     amount_regex = '[0-9od][0-9,.od]+'
@@ -47,9 +145,9 @@ def main_process(result):
         if 'จำนวน' in e_text:
             amount = find_candidate(result, entry, amount_regex)
             amount = amount.replace('o', '0').replace('d', '0')
-        if 'ค่าธรรมเนียม' in e_text:
-            fee = find_candidate(result, entry, amount_regex)
-            fee = fee.replace('o', '0').replace('d', '0')     
+        # if 'ค่าธรรมเนียม' in e_text:
+        #     fee = find_candidate(result, entry, amount_regex)
+        #     fee = fee.replace('o', '0').replace('d', '0')     
         if 'โอนมินสำเร็จ' in e_text:
             amount = find_candidate(result, entry, amount_regex)
             amount = amount.replace('o', '0').replace('d', '0')
@@ -84,44 +182,7 @@ def main_process(result):
             transaction_time = ''
     # find bank name
     bank_name = ''
-    bank_name_list = [
-        {
-            'en_name': 'Siam Commercial Bank', 
-            'th_name' : 'ธนาคารกรุงเทพ',
-            'synonyms': ['scb']
-        }, 
-        {
-            'en_name': 'Bangkok Bank',
-            'th_name': 'ธนาคารกรุงเทพ',
-            'synonyms': ['Bualuang iBanking', 'ธนาคารกรุงเทพ', 'Bangkok Bank']
-        }, 
-        {
-            'en_name': 'Krung Thai Bank',
-            'th_name': 'ธนาคารกรุงไทย',
-            'synonyms': ['Krungthai', 'กรุงไทย']
-        },
-        {
-            'en_name': 'Kasikorn Bank',
-            'th_name': 'ธนาคารกสิกรไทย',
-            'synonyms': ['ธ.กสิกรไทย']
-        },
-        {
-            'en_name': 'Thanachart Bank',
-            'th_name': 'ธนาคารธนชาต',
-            'synonyms': ['Thanachart Bank', 'ธนาคารธนชาต']
-        },
-        {
-            'en_name': 'Krunsri Bank',
-            'th_name': 'ธนาคารธนชาต',
-            'synonyms': ['krungsri', 'ธนาคารธนชาต']
-        },
-        {
-            'en_name': 'TMB Bank',
-            'th_name': 'ธนาคารทหารไทย จำกัด',
-            'synonyms': ['TMB', 'ทีเอ็มบี']
-        }
-        
-    ]
+    
     for entry in result:
         for bank_info in bank_name_list:
             bank_synonyms = bank_info['synonyms']
@@ -131,20 +192,30 @@ def main_process(result):
                 if  bank_synonym in e_text:
                     bank_name = bank_info['en_name']
                     break
-            
-    print('amount :', amount)
-    print('fee :', fee)
-    print('transaction_date : ', transaction_date)
-    print('transaction_time : ', transaction_time)
-    print('bank name :', bank_name)
+    res = {'amount':amount, 'transaction_date':transaction_date, 'transaction_time':transaction_time, 'bank_name': bank_name}
+    return res
 
 @app.route("/", methods=['GET', 'POST'])
 def index():
     return render_template("index.html")
 
-
+@app.route("/expert", methods=['GET', 'POST'])
+def expert():
+    workbook = xlsxwriter.Workbook('./ocrapp/static/uploads/expert.xlsx')
+    en_worksheet = workbook.add_worksheet("EN")
+    th_worksheet = workbook.add_worksheet("TH")
+    workbook.close()
+    return json.dumps(dict(
+        status=True,
+        file='1.xlsx',
+    ))
+    # return send_from_directory('./', filename='1.xlsx', as_attachment=True)
+    # return send_file('2.txt',
+    #                  attachment_filename='2.txt',
+    #                  as_attachment=True)
 @app.route("/upload", methods=["POST"])
 def upload():
+    response = []
     """Handle the upload of a file."""
     form = request.form
 
@@ -175,10 +246,12 @@ def upload():
     print(files)
     for file in files:
         image = cv2.imread(file)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         reader = easyocr.Reader(['th','en'], gpu=False) # need to run only once to load model into memory
         result = reader.readtext(image, width_ths=0.7)
-        main_process(result)
+        result = main_process(result)
+        filename = file.rsplit("/")[-1]
+        response.append({'file':filename, 'info':result})
+    print(response)
     if is_ajax:
         return ajax_response(True, upload_key)
     else:
@@ -211,3 +284,4 @@ def ajax_response(status, msg):
         status=status_code,
         msg=msg,
     ))
+
