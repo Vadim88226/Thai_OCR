@@ -5,11 +5,17 @@
 // Constants
 var MAX_UPLOAD_FILE_SIZE = 1024*1024; // 1 MB
 var UPLOAD_URL = "/upload";
+var EXPERT_URL = "/expert";
 var NEXT_URL   = "/files/";
 
 // List of pending files to handle when the Upload button is finally clicked.
 var PENDING_FILES  = [];
+$body = $("body");
 
+$(document).on({
+    ajaxStart: function() { $body.addClass("loading");    },
+     ajaxStop: function() { $body.removeClass("loading"); }    
+});
 
 $(document).ready(function() {
     // Set up the drag/drop zone.
@@ -30,8 +36,33 @@ $(document).ready(function() {
         e.preventDefault();
         doUpload();
     })
+
+    // Handle the Expert button
+    $("#Export-button").on("click", function(e) {
+        e.preventDefault();
+        expert_excel();
+    })
 });
 
+function expert_excel(){
+    var xhr = $.ajax({
+        url: EXPERT_URL,
+        method: "GET",
+        contentType: false,
+        processData: false,
+        cache: false,
+        success: function(data) {
+            data = JSON.parse(data);
+            fileUrl = '../static/uploads/' + data.file;
+            var file = new File(["aa"], fileUrl);
+            var link = document.createElement("a");
+            link.download = 'expert.xlsx';
+            link.href = fileUrl;
+            link.textContent = data.file;
+            link.click();
+        },
+    });
+}
 
 function doUpload() {
     // $("#progress").show();
@@ -56,24 +87,6 @@ function doUpload() {
     fd.append("__ajax", "true");
 
     var xhr = $.ajax({
-        // xhr: function() {
-        //     var xhrobj = $.ajaxSettings.xhr();
-        //     if (xhrobj.upload) {
-        //         xhrobj.upload.addEventListener("progress", function(event) {
-        //             var percent = 0;
-        //             var position = event.loaded || event.position;
-        //             var total    = event.total;
-        //             if (event.lengthComputable) {
-        //                 percent = Math.ceil(position / total * 100);
-        //             }
-
-        //             // Set the progress bar.
-        //             $progressBar.css({"width": percent + "%"});
-        //             $progressBar.text(percent + "%");
-        //         }, false)
-        //     }
-        //     return xhrobj;
-        // },
         url: UPLOAD_URL,
         method: "POST",
         contentType: false,
