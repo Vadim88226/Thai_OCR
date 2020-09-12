@@ -159,6 +159,7 @@ function handleFiles(files) {
 
 function initDropbox() {
     var $dropbox = $("#dropbox");
+    var $dropbox_text = $("#dropbox_text");
 
     // On drag enter...
     $dropbox.on("dragenter", function(e) {
@@ -183,7 +184,7 @@ function initDropbox() {
         handleFiles(files);
 
         // Update the display to acknowledge the number of pending files.
-        $dropbox.text(PENDING_FILES.length + " files ready for upload!");
+        $dropbox_text.text(PENDING_FILES.length + " files ready for upload!");
         doUpload();
     });
 
