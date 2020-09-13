@@ -14,7 +14,7 @@ $body = $("body");
 
 $(document).on({
     ajaxStart: function() { $body.addClass("loading");    },
-     ajaxStop: function() { $body.removeClass("loading"); }    
+     ajaxStop: function() { $body.removeClass("loading"); }
 });
 
 $(document).ready(function() {
@@ -22,7 +22,10 @@ $(document).ready(function() {
     initDropbox();
 
     // Set up the handler for the file input box.
-    $("#file-picker").on("change", function() {
+    $("#file-picker").on("change", function(e) {
+        var dropbox_text_obj = document.getElementById("dropbox_text");
+        dropbox_text_obj.innerHTML = "Or drag and drop files here";
+        e.preventDefault();
         handleFiles(this.files);
         doUpload();
     });
@@ -65,16 +68,9 @@ function expert_excel(){
 }
 
 function doUpload() {
-    // $("#progress").show();
-    // var $progressBar   = $("#progress-bar");
+    // $("#dropbox").children().prop('disabled',true);
+    // document.getElementById("dropbox").setAttribute('draggable',false);
 
-    // Gray out the form.
-    // $("#upload-form :input").attr("disabled", "disabled");
-
-    // Initialize the progress bar.
-    // $progressBar.css({"width": "0%"});
-
-    // Collect the form data.
     fd = new FormData();
 
     // Attach the files.
@@ -105,9 +101,6 @@ function doUpload() {
                 return;
             }
             else {
-                // Ok! Get the UUID.
-                // var uuid = data.msg;
-                // window.location = NEXT_URL + uuid;
             }
         },
     });
@@ -185,6 +178,7 @@ function initDropbox() {
 
         // Update the display to acknowledge the number of pending files.
         $dropbox_text.text(PENDING_FILES.length + " files ready for upload!");
+        $( "#file-picker" ).val("");
         doUpload();
     });
 
