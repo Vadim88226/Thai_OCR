@@ -10,7 +10,9 @@
 - install required packages
     
     flask
+    
     opencv-python
+    
     xlsxwriter
 # 2. Run
     python runserver.py
