@@ -85,7 +85,7 @@ def convert_year_th2en(th_year):
     if len(th_year) == 2:
         en_year = int(th_year) + 1957
     else: # lenth is 4
-        en_year = int(th_year) -43
+        en_year = int(th_year) -543
     return str(en_year)
 # convert date format th to en
 def convert_date_th2en(th_date):
@@ -95,7 +95,6 @@ def convert_date_th2en(th_date):
     th_year = date_list[2]
     en_month = convert_month_th2en(th_month)
     en_year = convert_year_th2en(th_year)
-
     en_date = datetime.datetime.strptime(day+'/'+en_month+'/'+en_year, "%d/%m/%Y").strftime('%d/%m/%Y') 
     return en_date
 
@@ -260,7 +259,6 @@ def expert():
         col += 1
     for index, entry in enumerate(response):
         row1 = index + 1
-        print(entry['file'], entry['info']['en_transaction_date'])
         en_worksheet.write(row1, 0, entry['file'])
         th_worksheet.write(row1, 0, entry['file'])
         en_worksheet.write(row1, 1, entry['info']['en_transaction_date'])
@@ -297,7 +295,6 @@ def upload():
 
     # Target folder for these uploads.
     target = "ocrapp/static/uploads/{}".format(upload_key)
-    print('is_ajax', is_ajax)
     try:
         os.mkdir(target)
     except:
