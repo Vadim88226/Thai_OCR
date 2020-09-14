@@ -2,5 +2,7 @@
 
 # 1. install
 - install pytorch
-if you have gpu,
+please install torch and torchvision first by following the official instruction here https://pytorch.org. 
+- install easyocr
+pip install easyocr
  
