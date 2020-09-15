@@ -10,7 +10,7 @@ import re
 import datetime
 from dateutil.parser import parse
 import xlsxwriter
-
+import numpy
 app = Flask(__name__)
 
 response = []
@@ -34,7 +34,7 @@ bank_name_list = [
     {
         'en_name': 'Kasikorn Bank',
         'th_name': 'ธนาคารกสิกรไทย',
-        'synonyms': ['ธ.กสิกรไทย']
+        'synonyms': ['ธ.กสิกรไทย', 'k plus']
     },
     {
         'en_name': 'Thanachart Bank',
@@ -54,7 +54,12 @@ bank_name_list = [
     {
         'en_name': 'Bank for Agriculture and Agricultural Cooperatives',
         'th_name': 'ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร',
-        'synonyms': ['BAAC', 'ธ.ก.ส.']
+        'synonyms': ['baac', 'ธ.ก.ส.']
+    },
+    {
+        'en_name': 'Government Savings Bank',
+        'th_name': 'ธนาคารออมสิน',
+        'synonyms': ['gsb', 'ธนาคารออมสิน']
     }
 ]
 
@@ -169,7 +174,7 @@ def find_candidate(result, entry, regex):
 def main_process(result):
     amount = ''
     fee = ''
-    amount_regex = '[0-9od][0-9,.od]+'
+    amount_regex = '[0-9od][0-9,.od]+[.][0-9od]{2}'
     for entry in result:
         e_text = entry[1]
         # find amount
@@ -227,12 +232,13 @@ def main_process(result):
     date_format = check_date_format(transaction_date)
     en_transaction_date = ''
     th_transaction_date = ''
-    if date_format == 'en':
-        en_transaction_date = transaction_date
-        th_transaction_date = convert_date_en2th(transaction_date)
-    else:
-        th_transaction_date = transaction_date
-        en_transaction_date = convert_date_th2en(transaction_date)
+    if transaction_date:
+        if date_format == 'en':
+            en_transaction_date = transaction_date
+            th_transaction_date = convert_date_en2th(transaction_date)
+        else:
+            th_transaction_date = transaction_date
+            en_transaction_date = convert_date_th2en(transaction_date)
     res = {'amount':amount, 'th_transaction_date':th_transaction_date, 'en_transaction_date':en_transaction_date, 'transaction_time':transaction_time, 'en_bank_name': en_bank_name, 'th_bank_name':th_bank_name}
     return res
 
@@ -309,11 +315,17 @@ def upload():
         upload.save(destination)
         files.append(destination)
     for file in files:
-        image = cv2.imread(file)
+        stream = open(file, "rb")
+        bytes = bytearray(stream.read())
+        numpyarray = numpy.asarray(bytes, dtype=numpy.uint8)
+        image = cv2.imdecode(numpyarray, cv2.IMREAD_UNCHANGED)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        # _, threshold = cv2.threshold(image, 200, 255, cv2.THRESH_BINARY)
         reader = easyocr.Reader(['th','en'], gpu=False) # need to run only once to load model into memory
         result = reader.readtext(image, width_ths=0.7)
         result = main_process(result)
-        filename = file.rsplit("/")[-1]
+        filename = os.path.basename(file)
+        filename = os.path.splitext(filename)[0]
         response.append({'file':filename, 'info':result})
     if is_ajax:
         return ajax_response(True, upload_key)
