@@ -14,7 +14,7 @@ $body = $("body");
 
 $(document).on({
     ajaxStart: function() { $body.addClass("loading");    },
-     ajaxStop: function() { $body.removeClass("loading"); }
+    ajaxStop: function() { $body.removeClass("loading"); }
 });
 
 $(document).ready(function() {
@@ -67,21 +67,13 @@ function expert_excel(){
     });
 }
 
-function doUpload() {
-    // $("#dropbox").children().prop('disabled',true);
-    // document.getElementById("dropbox").setAttribute('draggable',false);
-
+function ajax_call(index) {
+    console.log(index);
     fd = new FormData();
-
-    // Attach the files.
-    for (var i = 0, ie = PENDING_FILES.length; i < ie; i++) {
-        // Collect the other form data.
-        fd.append("file", PENDING_FILES[i]);
-    }
-
-    // Inform the back-end that we're doing this over ajax.
+    // Collect the other form data.
+    fd.append("file", PENDING_FILES[index]);
     fd.append("__ajax", "true");
-
+    fd.append("index", index)
     var xhr = $.ajax({
         url: UPLOAD_URL,
         method: "POST",
@@ -92,18 +84,71 @@ function doUpload() {
         success: function(data) {
             // $progressBar.css({"width": "100%"});
             data = JSON.parse(data);
-
-            // How'd it go?
-            if (data.status === "error") {
-                // Uh-oh.
-                window.alert(data.msg);
-                $("#upload-form :input").removeAttr("disabled");
-                return;
-            }
-            else {
+            console.log(data)
+            processed_image.innerHTML += "Slip " + data.file + " : Done <br>";
+            if(index + 1 < PENDING_FILES.length){
+                ajax_call(index + 1);
+                // How'd it go?
+                if (data.status === "error") {
+                    // Uh-oh.
+                    window.alert(data.msg);
+                    $("#upload-form :input").removeAttr("disabled");
+                    return;
+                }
+                else {
+                }
             }
         },
+        error: function(data) { // 500 Status Header
+            processed_image.innerHTML += "Slip " + data.file + " : Failed <br>";
+        }
     });
+}
+
+function doUpload() {
+    // $("#dropbox").children().prop('disabled',true);
+    // document.getElementById("dropbox").setAttribute('draggable',false);
+
+    // fd = new FormData();
+    var processed_image = document.getElementById('processed_image');
+    processed_image.innerHTML = "";
+
+    ajax_call(0);
+    // // Attach the files.
+    // for (var i = 0, ie = PENDING_FILES.length; i < ie; i++) {
+    //     fd = new FormData();
+    //     // Collect the other form data.
+    //     fd.append("file", PENDING_FILES[i]);
+    //     fd.append("__ajax", "true");
+    //     var xhr = $.ajax({
+    //         url: UPLOAD_URL,
+    //         method: "POST",
+    //         contentType: false,
+    //         processData: false,
+    //         cache: false,
+    //         data: fd,
+    //         success: function(data) {
+    //             // $progressBar.css({"width": "100%"});
+    //             data = JSON.parse(data);
+    //             console.log(data);
+    //             processed_image.innerHTML += data.file
+    //             // How'd it go?
+    //             if (data.status === "error") {
+    //                 // Uh-oh.
+    //                 window.alert(data.msg);
+    //                 $("#upload-form :input").removeAttr("disabled");
+    //                 return;
+    //             }
+    //             else {
+    //             }
+    //         },
+    //     });
+    // }
+
+    // Inform the back-end that we're doing this over ajax.
+    // fd.append("__ajax", "true");
+
+    
 }
 
 
