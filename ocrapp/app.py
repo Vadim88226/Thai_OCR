@@ -287,12 +287,17 @@ def expert():
 @app.route("/upload", methods=["POST"])
 def upload():
     global response
-    response = []
     """Handle the upload of a file."""
     form = request.form
 
     # Create a unique "session ID" for this particular batch of uploads.
     upload_key = str(uuid4())
+
+    # check if fist image of requests is or not
+    index = int(form.get("index", None))
+    if index == 0:
+        response = []
+
 
     # Is the upload using Ajax, or a direct POST by the form?
     is_ajax = False
@@ -328,7 +333,7 @@ def upload():
         filename = os.path.splitext(filename)[0]
         response.append({'file':filename, 'info':result})
     if is_ajax:
-        return ajax_response(True, upload_key)
+        return ajax_response(response[index]['file'], True, upload_key)
     else:
         return redirect(url_for("upload_complete", uuid=upload_key))
 
@@ -352,9 +357,10 @@ def upload_complete(uuid):
     )
 
 
-def ajax_response(status, msg):
+def ajax_response(filename, status, msg):
     status_code = "ok" if status else "error"
     return json.dumps(dict(
+        file=filename,
         status=status_code,
         msg=msg,
     ))
