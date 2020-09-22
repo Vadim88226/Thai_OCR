@@ -68,7 +68,6 @@ function expert_excel(){
 }
 
 function ajax_call(index) {
-    console.log(index);
     fd = new FormData();
     // Collect the other form data.
     fd.append("file", PENDING_FILES[index]);
@@ -84,7 +83,6 @@ function ajax_call(index) {
         success: function(data) {
             // $progressBar.css({"width": "100%"});
             data = JSON.parse(data);
-            console.log(data)
             processed_image.innerHTML += "Slip " + data.file + " : Done <br>";
             if(index + 1 < PENDING_FILES.length){
                 ajax_call(index + 1);
@@ -114,41 +112,6 @@ function doUpload() {
     processed_image.innerHTML = "";
 
     ajax_call(0);
-    // // Attach the files.
-    // for (var i = 0, ie = PENDING_FILES.length; i < ie; i++) {
-    //     fd = new FormData();
-    //     // Collect the other form data.
-    //     fd.append("file", PENDING_FILES[i]);
-    //     fd.append("__ajax", "true");
-    //     var xhr = $.ajax({
-    //         url: UPLOAD_URL,
-    //         method: "POST",
-    //         contentType: false,
-    //         processData: false,
-    //         cache: false,
-    //         data: fd,
-    //         success: function(data) {
-    //             // $progressBar.css({"width": "100%"});
-    //             data = JSON.parse(data);
-    //             console.log(data);
-    //             processed_image.innerHTML += data.file
-    //             // How'd it go?
-    //             if (data.status === "error") {
-    //                 // Uh-oh.
-    //                 window.alert(data.msg);
-    //                 $("#upload-form :input").removeAttr("disabled");
-    //                 return;
-    //             }
-    //             else {
-    //             }
-    //         },
-    //     });
-    // }
-
-    // Inform the back-end that we're doing this over ajax.
-    // fd.append("__ajax", "true");
-
-    
 }
 
 
